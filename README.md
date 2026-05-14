@@ -1,8 +1,6 @@
-# Turtle Draw 🐢
+# Ponderada - Turtle Draw 
 
-Pipeline de visão computacional do zero + pacote ROS 2 que faz a tartaruga do Turtlesim reproduzir os contornos de uma imagem.
-
-> **Atividade Ponderada — Robótica e Visão Computacional · Módulo 6 · Inteli**
+Nessa ponderada, foi elaborado um pipeline de visão computacional do zero + pacote ROS 2 que faz a tartaruga do Turtlesim reproduzir os contornos de uma imagem.
 
 ---
 
@@ -21,11 +19,11 @@ Imagem → Pré-processamento → Detecção de Bordas → Planejamento de Camin
 | Planejamento | Componentes conexos + Nearest Neighbor | NumPy puro |
 | Controle ROS 2 | TeleportAbsolute + SetPen | rclpy |
 
-> **Restrição respeitada:** OpenCV é usado **apenas** para carregar a imagem (`cv2.imread`). Todo o processamento usa exclusivamente NumPy.
-
 ---
 
 ## Estrutura do Projeto
+
+A estrutura do projeto em questão está organizada da seguinte forma:
 
 ```
 ponderada-ROS-e-visao-computacional/
@@ -141,6 +139,5 @@ ros2 run turtle_draw draw_node --ros-args \
 
 ---
 
-## Autora
+## Vídeo demonstrativo
 
-**Livia Coliveira** — Inteli, Módulo 6, Turma G04
