@@ -86,8 +86,6 @@ python3 run_pipeline.py --help
 
 ### Opção 2 — Pacote ROS 2 completo (turtlesim + desenho)
 
-Toda a execução agora é simplificada para rodar em um único terminal usando um *launch file*, partindo da raiz do projeto:
-
 ```bash
 # 1. Carregar ambiente ROS 2
 source /opt/ros/jazzy/setup.bash   # Ou iron/humble (depende da versão instalada)
@@ -102,32 +100,4 @@ cd ..
 ros2 launch turtle_draw draw.launch.py
 ```
 
-#### Parâmetros do launch file (todos opcionais)
-
-```bash
-ros2 launch turtle_draw draw.launch.py \
-    image:=/caminho/para/imagem.jpg \
-    max_size:=256     \  # tamanho máximo da imagem (px)
-    max_seg:=150      \  # máximo de segmentos a desenhar
-    min_seg:=5        \  # tamanho mínimo de segmento (px)
-    step:=3           \  # amostrar 1 a cada N pontos
-    delay:=0.005         # delay entre pontos (s), 0 = máximo vel
-```
-
-## Ajuste Fino dos Parâmetros
-
-| Parâmetro | Padrão | Efeito |
-|---|---|---|
-| `max_size` | 256 | Imagens maiores → mais detalhe, mais lento |
-| `gauss_sigma` | 1.4 | Maior → bordas mais suaves, menos ruído |
-| `canny_low` | 0.05 | Menor → mais bordas fracas detectadas |
-| `canny_high` | 0.15 | Maior → apenas bordas muito nítidas |
-| `max_seg` | 150 | Mais segmentos → desenho mais completo |
-| `min_seg` | 5 | Menor → pega detalhes menores (como olhos e nariz) |
-| `step` | 3 | Menor → mais pontos, mais fidelidade |
-| `delay` | 0.005 | 0 = velocidade máxima |
-
----
-
-## Vídeo demonstrativo
-
+## Vídeo explicativo

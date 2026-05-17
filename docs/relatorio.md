@@ -1,101 +1,79 @@
+# Documentação Técnica
+
+Este documento é a documentação técnica oficial da Ponderada de ROS e Visão Computacional. Ele detalha as decisões de projeto, a arquitetura e a matemática por trás da implementação de uma pipeline de visão computacional, bem como o método utilizado para realizar o mapeamento e o controle da tartaruga no simulador Turtlesim do ROS 2. 
+
+---
+
 ## 1. Pré-processamento
 
 ### 1.1 Conversão para Escala de Cinza
 
-A imagem é carregada em formato BGR (padrão do OpenCV) e convertida para escala de cinza usando a fórmula de luminância percebida **ITU-R BT.601**:
+Trabalhar com imagens coloridas (3 canais) triplica o custo computacional sem adicionar informações significativas para a detecção de bordas (que se baseia em contraste de luminosidade). Optou-se por usar a fórmula de luminância percebida ITU-R BT.601, pois os coeficientes não são iguais: o olho humano tem sensibilidades diferentes para cada cor (somos mais sensíveis ao verde e menos ao azul). Isso preserva melhor a percepção de contraste do que uma média simples (R+G+B)/3.
 
-```
-Y = 0.114·B + 0.587·G + 0.299·R
-```
-
-**Justificativa:** Os coeficientes não são iguais porque o olho humano tem sensibilidades diferentes para cada comprimento de onda — somos mais sensíveis ao verde (~59%) e menos ao azul (~11%). Usar essa fórmula em vez de uma média simples (Y = (R+G+B)/3) preserva melhor a percepção de contraste nas bordas, o que melhora a qualidade da detecção posterior.
+**Implementação:** A imagem é carregada em formato BGR (padrão do OpenCV) e convertida para um único canal em escala de cinza usando a fórmula: `Y = 0.114·B + 0.587·G + 0.299·R`.
 
 ### 1.2 Redimensionamento
 
-A imagem é redimensionada proporcionalmente para que o maior lado tenha no máximo 256 pixels, usando **interpolação bilinear** implementada manualmente com NumPy.
+O simulador turtlesim possui um canvas de espaço limitado (~11×11 unidades) e baixa resolução visual (o traço da caneta é espesso). Trabalhar com uma imagem original de alta resolução (ex: 1024x683px) geraria dezenas de milhares de pontos, tornando o traçado no simulador extremamente poluído, demorado e confuso. A decisão foi fixar um limite de tamanho, equilibrando fidelidade visual e tempo de execução.
 
-**Justificativa:** O turtlesim tem espaço limitado (~11×11 unidades) e resolução visual baixa. Trabalhar com a imagem original (~1024×683px) geraria dezenas de milhares de pontos de borda — muito mais do que a tartaruga consegue percorrer de forma visualmente coerente. O redimensionamento equilibra fidelidade visual e tempo de execução.
+**Implementação:** A imagem é redimensionada proporcionalmente para que o maior lado tenha no máximo 256 pixels. O algoritmo utilizado foi a interpolação bilinear, implementada de forma manual com operações matriciais em NumPy.
 
 ### 1.3 Suavização Gaussiana
 
-Aplicamos um filtro gaussiano **5×5 com σ=1.4**, implementado do zero:
+Bordas reais em imagens são transições suaves de intensidade. No entanto, ruídos de alta frequência (granulado fotográfico, artefatos de compressão JPEG) criam bordas falsas. A aplicação prévia de um filtro Gaussiano foi escolhida para eliminar esse ruído, evitando que o algoritmo de Canny gerasse detecções espúrias. Optou-se por um kernel 5x5 com σ=1.4 por ser o ponto de equilíbrio clássico sugerido na literatura para preservação de bordas verdadeiras.
 
-1. **Kernel gaussiano** gerado com a fórmula `G(x,y) = exp(-(x²+y²)/(2σ²))`, normalizado para soma 1.
-2. **Convolução 2D** com padding de reflexão (evita artefatos de borda com zeros).
-
-**Justificativa:** Bordas reais são transições suaves de intensidade. Ruído de alta frequência (granulado, compressão JPEG) cria falsas bordas. A gaussiana elimina esse ruído antes do detector de bordas, reduzindo detecções espúrias. O tamanho 5×5 com σ=1.4 é a configuração original proposta por Canny (1986) e é um ponto de equilíbrio entre suavização e preservação de bordas verdadeiras.
+**Implementação:** A suavização é feita gerando um kernel gaussiano com a fórmula matemática da distribuição normal 2D, seguido de uma convolução 2D. Para evitar artefatos de contorno escuro, utilizou-se a técnica de padding por reflexão.
 
 ---
 
-## 2. Detecção de Bordas — Algoritmo de Canny
+## 2. Detecção de Bordas (Algoritmo de Canny)
 
-Implementamos o algoritmo de Canny completo em 4 sub-etapas:
+Comparado a uma detecção simples com Sobel e um único limiar, optou-se por implementar a pipeline completa de Canny. O Sobel simples gera bordas muito espessas e ruidosas, enquanto o Canny, através da Supressão de Não-Máximos e da Histerese, produz bordas muito finas (1 pixel de largura) e contínuas. Para o turtlesim, isso é essencial, pois bordas finas evitam o sombreamento excessivo de traços na mesma região.
 
-### 2.1 Gradientes com Filtros de Sobel
+A implementação consiste em 4 sub-etapas:
 
-Os filtros de Sobel aproximam as derivadas parciais da intensidade:
+1. **Gradientes com Filtros de Sobel:**
+   - **Implementação:** Aproximam-se as derivadas parciais da intensidade convoluindo a imagem com os kernels Kx e Ky de Sobel. Em seguida, calcula-se a magnitude `G = √(Gx² + Gy²)` e a direção `θ = arctan2(Gy, Gx)` da borda.
 
-```
-Kx = [[-1, 0, 1],    Ky = [[-1, -2, -1],
-      [-2, 0, 2],          [ 0,  0,  0],
-      [-1, 0, 1]]           [ 1,  2,  1]]
-```
+2. **Supressão de Não-Máximos (NMS):**
+   - **Implementação:** Cada pixel tem sua magnitude comparada com seus dois vizinhos na direção do gradiente (arredondado para 0°, 45°, 90° ou 135°). Se não for um máximo local, seu valor é zerado. A versão foi vetorizada com slicing em NumPy.
 
-- **Magnitude:** `G = √(Gx² + Gy²)` — mede a força da borda
-- **Direção:** `θ = arctan2(Gy, Gx)` — indica a direção perpendicular à borda
+3. **Limiarização Dupla (Double Threshold):**
+   - **Implementação:** O uso de frações relativas ao valor máximo da imagem classifica os pixels em bordas "fortes", "fracas" e "ruído" (descartado). 
 
-### 2.2 Supressão de Não-Máximos (NMS)
-
-Para cada pixel, comparamos sua magnitude com os dois vizinhos na **direção do gradiente** (quantizado em 4 direções: 0°, 45°, 90°, 135°). Se o pixel não for máximo local, é zerado. Isso produz bordas de **1 pixel de largura**.
-
-**Implementação:** versão vetorizada com slicing NumPy (sem loops Python sobre pixels) para desempenho adequado.
-
-### 2.3 Limiarização Dupla
-
-Dois limiares adaptativos (frações do valor máximo de magnitude):
-- **High (15%):** pixels com `G ≥ high` → borda forte (certeza)
-- **Low (5%):** pixels com `low ≤ G < high` → borda fraca (candidata)
-- Abaixo de `low` → descartado
-
-### 2.4 Rastreamento por Histerese
-
-BFS (busca em largura) partindo de cada borda forte: bordas fracas **conectadas** a bordas fortes são promovidas a bordas reais; bordas fracas isoladas são descartadas como ruído.
-
-**Justificativa para escolha do Canny:** Comparado a simples Sobel + limiar único, o Canny produz bordas finas (1px), contínuas e com muito menos falsos positivos. A histerese é o diferencial — ela elimina ruído sem quebrar bordas reais. Para o turtlesim, bordas finas e contínuas são essenciais: bordas espessas gerariam sobreposição de traços e bordas quebradas gerariam saltos na trajetória.
+4. **Rastreamento por Histerese:**
+   - **Implementação:** Executa-se uma Busca em Largura (BFS) partindo das bordas fortes. As bordas fracas que estiverem diretamente conectadas a uma borda forte são transformadas em bordas válidas, enquanto as isoladas são descartadas.
 
 ---
 
 ## 3. Planejamento de Caminho
 
-### 3.1 Segmentação por Componentes Conexos
+### 3.1 Segmentação e Ordenação
 
-Em vez de tratar os pixels de borda como uma nuvem global, agrupamos pixels vizinhos (8-conectividade) em **segmentos contínuos** via BFS. Segmentos com menos de 15 pixels são descartados (ruído residual). Os maiores segmentos são priorizados.
+A saída do algoritmo de Canny é apenas uma máscara binária indicando onde existem bordas, mas a tartaruga precisa de uma sequência ordenada de coordenadas. Tentar ir do pixel A ao B sem ordem criaria "riscos" atravessando a tela inteira. A solução escolhida foi primeiro agrupar pixels conectados formando segmentos independentes, e depois ordená-los internamente.
 
-### 3.2 Ordenação por Vizinho Mais Próximo
+**Implementação:**
+- **Componentes Conexos:** Agrupamos pixels vizinhos (8-conectividade) via BFS. Segmentos excessivamente pequenos (ex: < 5 pixels) são eliminados por serem ruído residual.
+- **Vizinho Mais Próximo (Nearest Neighbor):** Dentro de um mesmo segmento, inicia-se em um extremo e caminha-se iterativamente para o pixel não-visitado mais próximo, criando um caminho fluido e localmente contínuo.
 
-Dentro de cada segmento, os pixels são reordenados pelo algoritmo **Greedy Nearest Neighbor**: partindo do pixel mais próximo à origem, sempre movemos ao ponto não visitado mais próximo. Isso cria um caminho contínuo ao longo do contorno, evitando saltos aleatórios.
+### 3.2 Mapeamento para o Turtlesim
 
-### 3.3 Mapeamento para o Turtlesim
+O sistema de coordenadas da imagem (pixels, origem no topo-esquerdo) não é o mesmo do turtlesim (escala de 0 a 11.09, origem no centro). Foi necessário criar uma transformação afim para traduzir o desenho corretamente.
 
-Conversão de coordenadas de pixel [row, col] para [x, y] turtlesim (11.09×11.09 unidades):
-- Escala proporcional com margem de 0.5 unidades
-- Inversão do eixo Y (imagem: Y↓ / turtlesim: Y↑)
+**Implementação:** Conversão de [row, col] para [x, y], aplicando uma escala que preserva a proporção da imagem dentro de uma margem de segurança de 0.5 unidades, invertendo o eixo Y para acompanhar o comportamento da tela.
 
 ---
 
 ## 4. Controle ROS 2
 
-O nó `draw_node` usa **três serviços** do turtlesim:
+Para desenhar um contorno extraído de uma imagem, a fidelidade da posição final é crucial. A escolha entre usar tópicos de velocidade (`cmd_vel`) ou chamadas de serviço de teleporte (`teleport_absolute`) foi feita em favor do teleporte. O `cmd_vel` acumula pequenos erros de integração numérica (física de tempo real) que fariam com que o final do desenho não se conectasse corretamente com o início, deformando as formas. O teleporte garante precisão matemática absoluta para cada vértice.
 
-| Serviço | Uso |
-|---|---|
-| `/reset` | Limpa a tela antes de desenhar |
-| `/turtle1/set_pen` | Liga/desliga caneta; define cor e espessura |
-| `/turtle1/teleport_absolute` | Posiciona a tartaruga com precisão |
-
-**Estratégia de desenho:** Para cada segmento, a caneta é **desligada** e a tartaruga teleporta para o ponto inicial; em seguida, a caneta é **ligada** e a tartaruga percorre o segmento ponto a ponto. Entre segmentos, cores diferentes ajudam a identificar os contornos visualmente.
-
-**Escolha por teleport vs. cmd_vel:** O teleporte garante precisão absoluta de posicionamento. O `cmd_vel` acumularia erros de integração numérica a cada passo, distorcendo o desenho final. Para o objetivo desta atividade — reproduzir fielmente um contorno extraído de visão computacional — a precisão supera o realismo cinemático.
+**Implementação:**
+O nó `draw_node` controla a tartaruga manipulando três serviços sequencialmente:
+1. `turtle1/set_pen`: Desliga a caneta para evitar rabiscar o fundo.
+2. `turtle1/teleport_absolute`: Move a tartaruga instantaneamente até o início de um novo segmento.
+3. `turtle1/set_pen`: Liga a caneta.
+4. `turtle1/teleport_absolute`: Visita todos os pontos do segmento atual, desenhando a linha efetiva.
 
 ---
 
