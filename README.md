@@ -101,3 +101,5 @@ ros2 launch turtle_draw draw.launch.py
 ```
 
 ## Vídeo explicativo
+
+[![Link do vídeo](https://img.youtube.com/vi/4coCmbELmSU/0.jpg)](https://youtu.be/4coCmbELmSU)
