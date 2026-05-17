@@ -29,9 +29,12 @@ from typing import List
 import numpy as np
 
 # Adicionar raiz do projeto ao sys.path para importar os módulos de visão
-_PKG_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..', '..', '..')
-)
+# Encontra a pasta raiz subindo nos diretórios até achar a pasta 'vision'
+_current_dir = os.path.abspath(os.path.dirname(__file__))
+while _current_dir != '/' and not os.path.isdir(os.path.join(_current_dir, 'vision')):
+    _current_dir = os.path.dirname(_current_dir)
+
+_PKG_ROOT = _current_dir
 if _PKG_ROOT not in sys.path:
     sys.path.insert(0, _PKG_ROOT)
 
@@ -48,12 +51,12 @@ DEFAULT_IMAGE    = os.path.join(_PKG_ROOT, 'image', 'bulldog.jpg')
 DEFAULT_MAX_SIZE = 256
 DEFAULT_GAUSS_SZ = 5
 DEFAULT_GAUSS_SG = 1.4
-DEFAULT_CLOW     = 0.05
-DEFAULT_CHIGH    = 0.15
-DEFAULT_MAX_SEG  = 20
-DEFAULT_MIN_SEG  = 15
+DEFAULT_CLOW     = 0.02
+DEFAULT_CHIGH    = 0.08
+DEFAULT_MAX_SEG  = 200
+DEFAULT_MIN_SEG  = 5
 DEFAULT_STEP     = 3
-DEFAULT_DELAY    = 0.01   # segundos entre pontos consecutivos
+DEFAULT_DELAY    = 0.005   # segundos entre pontos consecutivos
 
 
 class TurtleDrawNode(Node):
@@ -163,6 +166,9 @@ class TurtleDrawNode(Node):
         """
         # Ler parâmetros
         image_path  = self.get_parameter('image').value
+        if not os.path.isabs(image_path):
+            image_path = os.path.join(_PKG_ROOT, image_path)
+            
         max_size    = self.get_parameter('max_size').value
         gauss_size  = self.get_parameter('gauss_size').value
         gauss_sigma = self.get_parameter('gauss_sigma').value

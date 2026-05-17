@@ -86,16 +86,19 @@ python3 run_pipeline.py --help
 
 ### Opção 2 — Pacote ROS 2 completo (turtlesim + desenho)
 
+Toda a execução agora é simplificada para rodar em um único terminal usando um *launch file*, partindo da raiz do projeto:
+
 ```bash
 # 1. Carregar ambiente ROS 2
-source /opt/ros/humble/setup.bash   # Ou iron/jazzy
+source /opt/ros/jazzy/setup.bash   # Ou iron/humble (depende da versão instalada)
 
 # 2. Ir para a pasta do pacote e compilar
 cd turtle_draw
 colcon build --symlink-install
 source install/setup.bash
 
-# 3. Executar (sobe turtlesim + nó de desenho)
+# 3. Voltar para a raiz e executar (sobe turtlesim + nó de desenho juntos)
+cd ..
 ros2 launch turtle_draw draw.launch.py
 ```
 
@@ -105,25 +108,11 @@ ros2 launch turtle_draw draw.launch.py
 ros2 launch turtle_draw draw.launch.py \
     image:=/caminho/para/imagem.jpg \
     max_size:=256     \  # tamanho máximo da imagem (px)
-    max_seg:=20       \  # máximo de segmentos a desenhar
-    min_seg:=15       \  # tamanho mínimo de segmento (px)
+    max_seg:=150      \  # máximo de segmentos a desenhar
+    min_seg:=5        \  # tamanho mínimo de segmento (px)
     step:=3           \  # amostrar 1 a cada N pontos
-    delay:=0.01          # delay entre pontos (s), 0 = máximo vel
+    delay:=0.005         # delay entre pontos (s), 0 = máximo vel
 ```
-
-### Opção 3 — Executar nó e turtlesim separadamente
-
-```bash
-# Terminal 1 — turtlesim
-ros2 run turtlesim turtlesim_node
-
-# Terminal 2 — nó de desenho
-ros2 run turtle_draw draw_node --ros-args \
-    -p image:=image/bulldog.jpg \
-    -p max_seg:=20
-```
-
----
 
 ## Ajuste Fino dos Parâmetros
 
@@ -133,9 +122,10 @@ ros2 run turtle_draw draw_node --ros-args \
 | `gauss_sigma` | 1.4 | Maior → bordas mais suaves, menos ruído |
 | `canny_low` | 0.05 | Menor → mais bordas fracas detectadas |
 | `canny_high` | 0.15 | Maior → apenas bordas muito nítidas |
-| `max_seg` | 20 | Mais segmentos → desenho mais completo |
+| `max_seg` | 150 | Mais segmentos → desenho mais completo |
+| `min_seg` | 5 | Menor → pega detalhes menores (como olhos e nariz) |
 | `step` | 3 | Menor → mais pontos, mais fidelidade |
-| `delay` | 0.01 | 0 = velocidade máxima |
+| `delay` | 0.005 | 0 = velocidade máxima |
 
 ---
 

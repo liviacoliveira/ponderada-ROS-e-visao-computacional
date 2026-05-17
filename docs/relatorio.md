@@ -1,11 +1,3 @@
-# Relatório Técnico — Turtle Draw
-
-**Disciplina:** Robótica e Visão Computacional · Módulo 6  
-**Aluna:** Livia Coliveira · Inteli · G04  
-**Entrega:** 22/05/2026
-
----
-
 ## 1. Pré-processamento
 
 ### 1.1 Conversão para Escala de Cinza
@@ -112,3 +104,4 @@ O nó `draw_node` usa **três serviços** do turtlesim:
 - **Desempenho da convolução:** A convolução 2D pura com loops Python sobre pixels era impraticável (>5min para imagem 256px). Solução: versão vetorizada com slicing NumPy que processa todos os deslocamentos do kernel de forma matricial.
 - **Ordenação de pontos:** Pixels de borda não têm ordem natural. O algoritmo de vizinho mais próximo funciona bem para contornos localmente contínuos, mas pode criar "atalhos" em cruzamentos de bordas.
 - **Escala de limiares:** Limiares fixos (ex: 100/200) não funcionam para imagens com diferentes faixas de contraste. A solução foi usar **limiares relativos** ao máximo de magnitude de cada imagem.
+- **Extração de Contorno vs Texturas:** O algoritmo de Canny é um detector de bordas genérico, não um segmentador semântico. Isso significa que ele detecta todas as transições abruptas (textura do fundo, dobras do pelo, linhas no chão), e não apenas a "silhueta" principal do cachorro. A dificuldade foi realizar o ajuste fino iterativo dos parâmetros (aumentar o *blur* e baixar os limiares) para encontrar um balanço onde as orelhas fossem detectadas sem que o fundo tomasse conta do desenho inteiro.

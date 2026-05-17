@@ -111,14 +111,14 @@ if __name__ == "__main__":
                         help="Tamanho do kernel gaussiano (padrão: 5)")
     parser.add_argument("--gauss-sigma", type=float, default=1.4,
                         help="Sigma do filtro gaussiano (padrão: 1.4)")
-    parser.add_argument("--canny-low",   type=float, default=0.05,
-                        help="Limiar baixo do Canny, relativo ao máximo (padrão: 0.05)")
-    parser.add_argument("--canny-high",  type=float, default=0.15,
-                        help="Limiar alto do Canny, relativo ao máximo (padrão: 0.15)")
-    parser.add_argument("--max-seg",     type=int,   default=20,
-                        help="Número máximo de segmentos (padrão: 20)")
-    parser.add_argument("--min-seg",     type=int,   default=15,
-                        help="Tamanho mínimo de segmento em pixels (padrão: 15)")
+    parser.add_argument("--canny-low",   type=float, default=0.02,
+                        help="Limiar baixo do Canny, relativo ao máximo (padrão: 0.02)")
+    parser.add_argument("--canny-high",  type=float, default=0.08,
+                        help="Limiar alto do Canny, relativo ao máximo (padrão: 0.08)")
+    parser.add_argument("--max-seg",     type=int,   default=200,
+                        help="Número máximo de segmentos (padrão: 200)")
+    parser.add_argument("--min-seg",     type=int,   default=5,
+                        help="Tamanho mínimo de segmento em pixels (padrão: 5)")
     parser.add_argument("--step",        type=int,   default=3,
                         help="Amostragem de pontos: pegar 1 a cada N (padrão: 3)")
     parser.add_argument("--save",        action="store_true",
